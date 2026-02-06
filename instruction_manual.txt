@@ -1,0 +1,58 @@
+Discord Local AI Setup Manual
+
+Overview
+- This system runs fully locally for memory, retrieval, and reasoning.
+- The only required external connectivity is Discord's gateway for receiving/sending messages.
+
+Prerequisites
+1. Python 3.11+ recommended.
+2. A Discord bot token (from Discord Developer Portal).
+3. Local model server (optional but recommended): Ollama, LM Studio, llama.cpp server, etc.
+
+Quick Start
+1. Create and activate a virtual environment:
+   python -m venv .venv
+   source .venv/bin/activate
+
+2. Install dependencies:
+   pip install -r requirements.txt
+
+3. Configure config.yaml:
+   - discord.token: your bot token
+   - discord.admin_user_ids: list of admin user IDs
+   - model.endpoint_url: local model server (OpenAI-style /v1/chat/completions)
+   - storage.sqlite_path and storage.chroma_path for local data
+
+4. Initialize the database:
+   python scripts/migrate.py --sqlite ./data/memory.db
+
+5. Start the bot:
+   python main.py
+
+Local Model Integration
+- Use any OpenAI-compatible local endpoint. Example:
+  model:
+    provider: "local_http"
+    endpoint_url: "http://localhost:8000/v1/chat/completions"
+    model_name: "local-model"
+- If the endpoint is offline, the bot uses a local fallback reply.
+
+Image Reading
+- Azure can read basic image metadata from Discord attachments.
+- Supported formats depend on Pillow (PNG, JPG, GIF, etc.).
+- Image metadata is stored locally as a visual memory (format, size, mode).
+
+Admin Commands
+- !memory [n]       -> list recent memories
+- !memory_delete id -> delete a memory
+- !wipe_user id     -> wipe user memories
+- !personality      -> show personality state
+
+Data Storage
+- SQLite: structured memory and conversation logs
+- Chroma: local vector retrieval
+- Transparency logs: ./data/transparency.log
+
+Notes
+- Runs offline except for Discord.
+- Configure proactive behavior in config.yaml under memory/scheduler.
