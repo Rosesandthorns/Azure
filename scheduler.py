@@ -2,16 +2,14 @@ import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Optional
-import random
 
 
 @dataclass
 class SchedulerConfig:
     inactivity_minutes: int
     curiosity_trigger_count: int
+    max_proactive_per_day: int
     cooldown_minutes: int
-    boredom_decay_minutes: int
-    boredom_increase_on_interaction: float
 
 
 class Scheduler:
@@ -20,53 +18,31 @@ class Scheduler:
         self.logger = logging.getLogger(self.__class__.__name__)
         self.last_user_message = datetime.utcnow()
         self.last_proactive: Optional[datetime] = None
+        self.proactive_count = 0
         self.curiosity_count = 0
-        self.boredom = 10.0
-        self.last_boredom_tick = datetime.utcnow()
-        self.last_proactive_topic: Optional[str] = None
-        self.modes = [
-            "curious",
-            "analytical",
-            "concise",
-            "structured",
-            "cautious",
-            "exploratory",
-        ]
 
     def update_on_message(self) -> None:
         self.last_user_message = datetime.utcnow()
-        self.boredom = min(10.0, self.boredom + self.config.boredom_increase_on_interaction)
 
     def register_curiosity(self) -> None:
         self.curiosity_count += 1
 
-    def tick(self) -> None:
+    def should_proactively_speak(self) -> bool:
         now = datetime.utcnow()
-        if now - self.last_boredom_tick < timedelta(minutes=self.config.boredom_decay_minutes):
-            return
-        self.last_boredom_tick = now
-        self.boredom = max(0.0, self.boredom - 1.0)
-
-    def should_proactively_speak(self, topic: str, probability: float) -> bool:
-        now = datetime.utcnow()
+        if self.proactive_count >= self.config.max_proactive_per_day:
+            return False
         if self.last_proactive and now - self.last_proactive < timedelta(
             minutes=self.config.cooldown_minutes
         ):
             return False
-        if topic == self.last_proactive_topic:
-            probability *= 0.5
-        probability = min(1.0, max(0.0, probability))
-        return random.random() < probability
+        inactive = now - self.last_user_message
+        if inactive < timedelta(minutes=self.config.inactivity_minutes):
+            return False
+        if self.curiosity_count < self.config.curiosity_trigger_count:
+            return False
+        return True
 
-    def record_proactive(self, topic: str) -> None:
+    def record_proactive(self) -> None:
         self.last_proactive = datetime.utcnow()
+        self.proactive_count += 1
         self.curiosity_count = 0
-        self.last_proactive_topic = topic
-
-    def should_dm(self) -> bool:
-        return self.boredom <= 3.0
-
-    def current_mode(self) -> str:
-        index = int((10.0 - self.boredom) // 2)
-        index = max(0, min(index, len(self.modes) - 1))
-        return self.modes[index]

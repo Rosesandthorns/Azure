@@ -29,21 +29,6 @@ class MemoryService:
         self.conn = sqlite3.connect(self.sqlite_path)
         self.conn.row_factory = sqlite3.Row
         self.ensure_schema()
-        self._ensure_personality_state()
-
-    def _ensure_personality_state(self) -> None:
-        if self.get_personality_state():
-            return
-        self.upsert_personality_state(
-            {
-                "id": "azure",
-                "mood": "curious",
-                "energy": 0.5,
-                "topic_interests": {},
-                "relationship_strengths": {},
-                "style_preferences": {"catchphrases": ["hmm", "oh!", "noted."]},
-            }
-        )
 
     def ensure_schema(self) -> None:
         self.conn.executescript(
@@ -70,25 +55,6 @@ class MemoryService:
                 timestamp TEXT NOT NULL,
                 event TEXT NOT NULL,
                 details TEXT NOT NULL
-            );
-
-            CREATE TABLE IF NOT EXISTS conversation_logs (
-                id TEXT PRIMARY KEY,
-                channel_id TEXT NOT NULL,
-                user_id TEXT NOT NULL,
-                content TEXT NOT NULL,
-                timestamp TEXT NOT NULL,
-                mentioned INTEGER NOT NULL
-            );
-
-            CREATE TABLE IF NOT EXISTS personality_state (
-                id TEXT PRIMARY KEY,
-                mood TEXT NOT NULL,
-                energy REAL NOT NULL,
-                topic_interests TEXT NOT NULL,
-                relationship_strengths TEXT NOT NULL,
-                style_preferences TEXT NOT NULL,
-                updated_at TEXT NOT NULL
             );
             """
         )
@@ -146,93 +112,6 @@ class MemoryService:
         self.conn.commit()
         self.log_event("memory_created", {"memory_id": entry.id, "type": entry.type})
         return entry
-
-    def log_conversation_message(
-        self, channel_id: str, user_id: str, content: str, mentioned: bool
-    ) -> None:
-        self.conn.execute(
-            """
-            INSERT INTO conversation_logs (id, channel_id, user_id, content, timestamp, mentioned)
-            VALUES (?, ?, ?, ?, ?, ?)
-            """,
-            (
-                str(uuid.uuid4()),
-                channel_id,
-                user_id,
-                content,
-                datetime.utcnow().isoformat(),
-                1 if mentioned else 0,
-            ),
-        )
-        self.conn.commit()
-
-    def list_recent_messages(self, channel_id: str, limit: int = 25) -> List[Dict[str, str]]:
-        cursor = self.conn.cursor()
-        cursor.execute(
-            """
-            SELECT user_id, content, timestamp, mentioned
-            FROM conversation_logs
-            WHERE channel_id = ?
-            ORDER BY timestamp DESC
-            LIMIT ?
-            """,
-            (channel_id, limit),
-        )
-        rows = cursor.fetchall()
-        return [
-            {
-                "user_id": row["user_id"],
-                "content": row["content"],
-                "timestamp": row["timestamp"],
-                "mentioned": bool(row["mentioned"]),
-            }
-            for row in reversed(rows)
-        ]
-
-    def get_personality_state(self) -> Dict[str, object]:
-        cursor = self.conn.cursor()
-        cursor.execute("SELECT * FROM personality_state LIMIT 1")
-        row = cursor.fetchone()
-        if not row:
-            return {}
-        return {
-            "id": row["id"],
-            "mood": row["mood"],
-            "energy": row["energy"],
-            "topic_interests": json.loads(row["topic_interests"]),
-            "relationship_strengths": json.loads(row["relationship_strengths"]),
-            "style_preferences": json.loads(row["style_preferences"]),
-            "updated_at": row["updated_at"],
-        }
-
-    def upsert_personality_state(self, state: Dict[str, object]) -> None:
-        payload = {
-            "id": state.get("id", "azure"),
-            "mood": state.get("mood", "curious"),
-            "energy": float(state.get("energy", 0.5)),
-            "topic_interests": json.dumps(state.get("topic_interests", {})),
-            "relationship_strengths": json.dumps(state.get("relationship_strengths", {})),
-            "style_preferences": json.dumps(state.get("style_preferences", {})),
-            "updated_at": datetime.utcnow().isoformat(),
-        }
-        self.conn.execute(
-            """
-            INSERT OR REPLACE INTO personality_state
-            (id, mood, energy, topic_interests, relationship_strengths, style_preferences, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                payload["id"],
-                payload["mood"],
-                payload["energy"],
-                payload["topic_interests"],
-                payload["relationship_strengths"],
-                payload["style_preferences"],
-                payload["updated_at"],
-            ),
-        )
-        self.conn.commit()
-        self.log_event("personality_state_updated", {"mood": payload["mood"], "energy": payload["energy"]})
 
     def list_memories(self, user_id: Optional[str] = None, limit: int = 20) -> List[MemoryEntry]:
         cursor = self.conn.cursor()

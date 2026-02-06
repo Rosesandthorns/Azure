@@ -51,7 +51,6 @@ class ReflectionWorker:
                 source_memory_ids=[m.id for m in recent],
             )
             created.append(entry)
-        self._update_personality_state(recent)
         return created
 
     def _summarize(self, memories: List[MemoryEntry]) -> str:
@@ -75,48 +74,3 @@ class ReflectionWorker:
             {"role": "user", "content": content},
         ]
         return self.model.generate(messages)
-
-    def _update_personality_state(self, memories: List[MemoryEntry]) -> None:
-        state = self.memory_service.get_personality_state() or {
-            "id": "azure",
-            "mood": "curious",
-            "energy": 0.5,
-            "topic_interests": {},
-            "relationship_strengths": {},
-            "style_preferences": {"catchphrases": ["hmm", "oh!", "noted."]},
-        }
-        mood = self._compute_mood(memories)
-        energy = min(1.0, state.get("energy", 0.5) + 0.05)
-        topic_interests = state.get("topic_interests", {})
-        relationship_strengths = state.get("relationship_strengths", {})
-        for memory in memories:
-            for token in memory.content.lower().split():
-                if len(token) > 4:
-                    topic_interests[token] = topic_interests.get(token, 0) + 1
-            relationship_strengths[memory.user_id] = relationship_strengths.get(memory.user_id, 0) + 1
-        state.update(
-            {
-                "mood": mood,
-                "energy": energy,
-                "topic_interests": topic_interests,
-                "relationship_strengths": relationship_strengths,
-                "style_preferences": state.get("style_preferences", {"catchphrases": ["hmm", "oh!", "noted."]}),
-            }
-        )
-        self.memory_service.upsert_personality_state(state)
-
-    def _compute_mood(self, memories: List[MemoryEntry]) -> str:
-        positive = {"thanks", "great", "awesome", "love", "nice", "cool"}
-        negative = {"stupid", "hate", "annoying", "bad", "ugh"}
-        score = 0
-        for memory in memories:
-            text = memory.content.lower()
-            if any(term in text for term in positive):
-                score += 1
-            if any(term in text for term in negative):
-                score -= 1
-        if score >= 2:
-            return "excited"
-        if score <= -2:
-            return "guarded"
-        return "curious"

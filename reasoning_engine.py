@@ -43,16 +43,6 @@ class ReasoningEngine:
                 source_memory_ids=[m.id for m in retrieved_memories],
             )
             new_memories.append(summary_entry)
-        if contradictions:
-            aha_entry = self.memory_service.create_memory(
-                content=f"Aha: potential contradiction spotted ({', '.join(contradictions)}).",
-                memory_type="reflection",
-                confidence=0.4,
-                importance=0.3,
-                user_id=new_memory.user_id,
-                source_memory_ids=[m.id for m in retrieved_memories],
-            )
-            new_memories.append(aha_entry)
 
         return ReasoningOutcome(
             new_memories=new_memories,
@@ -64,15 +54,13 @@ class ReasoningEngine:
         if len(memories) < 3:
             return ""
         tokens: List[str] = []
-        avg_conf = sum(m.confidence for m in memories) / len(memories)
         for memory in memories:
             tokens.extend([t for t in memory.content.lower().split() if len(t) > 3])
         if not tokens:
             return ""
         counts = Counter(tokens)
         top_terms = ", ".join([term for term, _ in counts.most_common(5)])
-        hedge = "maybe " if avg_conf < 0.5 else ""
         return (
             "Summary of recurring topics from recent memories: "
-            f"{hedge}{top_terms}."
+            f"{top_terms}."
         )

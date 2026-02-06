@@ -6,7 +6,6 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 from memory_service import MemoryService  # noqa: E402
-from profile_service import ProfileService  # noqa: E402
 
 
 def main() -> None:
@@ -16,7 +15,6 @@ def main() -> None:
 
     logging.basicConfig(level=logging.INFO)
     MemoryService(args.sqlite)
-    ProfileService(args.sqlite, default_self_interests=[])
     logging.info("Migrations applied to %s", args.sqlite)
 
 

@@ -25,25 +25,13 @@ storage:
 memory:
   max_retrievals: 8
   min_importance_to_store: 0.3
-  reflection_interval_hours: 0.5
-  proactive_cooldown_minutes: 5
-  boredom_decay_minutes: 30
-  boredom_increase_on_interaction: 1.0
-  thought_stream_interval_minutes: 7
-  consciousness_interval_seconds: 45
+  reflection_interval_hours: 6
+  proactive_cooldown_minutes: 60
 
 scheduler:
-  inactivity_minutes: 5
-  curiosity_trigger_count: 1
-
-persona:
-  default_self_interests:
-    - systems
-    - architecture
-    - automation
-    - knowledge-bases
-    - gaming
-    - science
+  inactivity_minutes: 30
+  curiosity_trigger_count: 3
+  max_proactive_per_day: 5
 
 logging:
   transparency_log_path: "./data/transparency.log"

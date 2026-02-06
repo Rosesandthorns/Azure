@@ -17,8 +17,6 @@ A fully local Discord AI system with persistent memory, retrieval, reasoning, an
 ├── reasoning_engine.py
 ├── belief_tracker.py
 ├── reflection_worker.py
-├── thought_stream_worker.py
-├── consciousness_loop.py
 ├── scheduler.py
 ├── scripts
 │   └── migrate.py
@@ -45,7 +43,7 @@ A fully local Discord AI system with persistent memory, retrieval, reasoning, an
 
 ## Database Schema
 
-SQLite table `memories` stores all memory types (episodic, semantic, summary, belief, curiosity, observational, emotional, anticipation, thought_stream, reflection):
+SQLite table `memories` stores all memory types (episodic, semantic, summary, belief, curiosity):
 
 - `id` (TEXT, primary key)
 - `content` (TEXT)
@@ -57,18 +55,6 @@ SQLite table `memories` stores all memory types (episodic, semantic, summary, be
 - `source_memory_ids` (TEXT, JSON array)
 
 Vector storage is handled by Chroma in local persistent mode (`storage.chroma_path`).
-
-The `user_profiles` table tracks per-user preferences and style adaptation:
-
-- `user_id` (TEXT, primary key)
-- `like_score` (REAL)
-- `interests` (TEXT, JSON array)
-- `topics_seen` (TEXT, JSON array)
-- `style` (TEXT, JSON object)
-- `last_interaction` (TEXT)
-
-`conversation_logs` stores recent channel history for context building, and `personality_state`
-keeps Azure's evolving mood/energy/interests.
 
 ## Local Model Server Integration
 
@@ -89,14 +75,10 @@ If the endpoint is unavailable, a local fallback response is used to keep the bo
 - `!memory_delete <id>` (admin) - delete a memory
 - `!wipe_user <id>` (admin) - remove all memory entries for a user
 - `!memory_help` - show commands
-- `!personality` - show current personality state (admin)
 
 ## Notes
 
 - Reflection runs locally on a timer to derive summaries and beliefs.
-- The scheduler uses boredom and probabilistic triggers for proactive messages and DMs.
+- The scheduler controls proactive messages and uses inactivity and curiosity levels.
 - All memory is stored locally in SQLite and Chroma.
 - Transparency logs are written to the SQLite `transparency_logs` table and to `logging.transparency_log_path`.
-- Per-user profiles store interests, like scores, and style signals to adapt replies.
-- Proactive DMs are driven by boredom and user affinity scores.
-- Thought streams and consciousness loops add internal reflection memories.
