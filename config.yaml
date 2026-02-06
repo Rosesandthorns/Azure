@@ -27,22 +27,11 @@ memory:
   min_importance_to_store: 0.3
   reflection_interval_hours: 6
   proactive_cooldown_minutes: 60
-  boredom_decay_minutes: 30
-  boredom_increase_on_interaction: 1.0
 
 scheduler:
   inactivity_minutes: 30
   curiosity_trigger_count: 3
-  max_proactive_per_day: 3
-
-persona:
-  default_self_interests:
-    - systems
-    - architecture
-    - automation
-    - knowledge-bases
-    - gaming
-    - science
+  max_proactive_per_day: 5
 
 logging:
   transparency_log_path: "./data/transparency.log"

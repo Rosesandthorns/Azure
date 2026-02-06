@@ -56,15 +56,6 @@ SQLite table `memories` stores all memory types (episodic, semantic, summary, be
 
 Vector storage is handled by Chroma in local persistent mode (`storage.chroma_path`).
 
-The `user_profiles` table tracks per-user preferences and style adaptation:
-
-- `user_id` (TEXT, primary key)
-- `like_score` (REAL)
-- `interests` (TEXT, JSON array)
-- `topics_seen` (TEXT, JSON array)
-- `style` (TEXT, JSON object)
-- `last_interaction` (TEXT)
-
 ## Local Model Server Integration
 
 The model interface is abstracted in `model_interface.py`. The default provider is `local_http`, which sends OpenAI-compatible requests to a local endpoint (e.g., Ollama, LM Studio, llama.cpp server). Configure:
@@ -89,8 +80,5 @@ If the endpoint is unavailable, a local fallback response is used to keep the bo
 
 - Reflection runs locally on a timer to derive summaries and beliefs.
 - The scheduler controls proactive messages and uses inactivity and curiosity levels.
-- The scheduler tracks boredom and communication modes to manage proactive DMs and tone.
 - All memory is stored locally in SQLite and Chroma.
 - Transparency logs are written to the SQLite `transparency_logs` table and to `logging.transparency_log_path`.
-- Per-user profiles store interests, like scores, and style signals to adapt replies.
-- Proactive DMs are driven by boredom and user affinity scores.

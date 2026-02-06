@@ -9,11 +9,9 @@ import yaml
 from discord_gateway import DiscordConfig, DiscordGateway, MemoryConfig
 from memory_service import MemoryService
 from model_interface import build_model_interface
-from profile_service import ProfileService
 from reflection_worker import ReflectionWorker
 from retrieval_engine import RetrievalEngine
 from scheduler import Scheduler, SchedulerConfig
-from safety_filter import SafetyFilter
 
 
 def load_config() -> Dict[str, Any]:
@@ -35,21 +33,12 @@ async def background_loop(
     scheduler: Scheduler,
     model: Any,
     memory_service: MemoryService,
-    profile_service: ProfileService,
 ) -> None:
     while True:
-        scheduler.tick()
         if reflection_worker.should_run():
             reflection_worker.run()
-        if scheduler.should_dm():
-            target = gateway.pick_dm_target()
-            if target:
-                prompt = gateway.build_boredom_prompt(target)
-                await gateway.send_dm(target.user_id, prompt)
-                scheduler.update_on_message()
-        curiosity = memory_service.list_memories(limit=5)
-        topic = curiosity[0].content[:40] if curiosity else "general check-in"
-        if scheduler.should_proactively_speak(topic):
+        if scheduler.should_proactively_speak():
+            curiosity = memory_service.list_memories(limit=5)
             content = "\n".join([m.content for m in curiosity])
             messages = [
                 {
@@ -60,7 +49,7 @@ async def background_loop(
             ]
             reply = model.generate(messages)
             await gateway.send_proactive_message(reply)
-            scheduler.record_proactive(topic)
+            scheduler.record_proactive()
         await asyncio.sleep(10)
 
 
@@ -77,10 +66,6 @@ def main() -> None:
         config["storage"]["sqlite_path"],
         transparency_log_path=config.get("logging", {}).get("transparency_log_path"),
     )
-    profile_service = ProfileService(
-        config["storage"]["sqlite_path"],
-        default_self_interests=config.get("persona", {}).get("default_self_interests", []),
-    )
     retrieval_engine = RetrievalEngine(
         config["storage"]["chroma_path"],
         config["storage"]["embedding_dim"],
@@ -92,27 +77,12 @@ def main() -> None:
             curiosity_trigger_count=int(config["scheduler"]["curiosity_trigger_count"]),
             max_proactive_per_day=int(config["scheduler"]["max_proactive_per_day"]),
             cooldown_minutes=int(config["memory"]["proactive_cooldown_minutes"]),
-            boredom_decay_minutes=int(config["memory"]["boredom_decay_minutes"]),
-            boredom_increase_on_interaction=float(
-                config["memory"]["boredom_increase_on_interaction"]
-            ),
         )
     )
     reflection_worker = ReflectionWorker(
         memory_service,
         model,
         interval_hours=int(config["memory"]["reflection_interval_hours"]),
-    )
-    safety_filter = SafetyFilter(
-        banned_phrases=[
-            "cutie",
-            "sweetie",
-            "darling",
-            "babe",
-            "love",
-            "honey",
-            "dear",
-        ]
     )
 
     discord_config = DiscordConfig(
@@ -126,23 +96,14 @@ def main() -> None:
         discord_config,
         memory_config,
         memory_service,
-        profile_service,
         retrieval_engine,
         model,
         scheduler,
-        safety_filter,
     )
 
     async def runner() -> None:
         gateway.loop.create_task(
-            background_loop(
-                gateway,
-                reflection_worker,
-                scheduler,
-                model,
-                memory_service,
-                profile_service,
-            )
+            background_loop(gateway, reflection_worker, scheduler, model, memory_service)
         )
         await gateway.start(discord_config.token)
 
